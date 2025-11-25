@@ -1,0 +1,307 @@
+{
+  "name": "sopsie",
+  "displayName": "SOPSie",
+  "description": "Seamlessly edit SOPS-encrypted files in VS Code",
+  "version": "0.1.0",
+  "publisher": "JinxCappa",
+  "repository": "https://github.com/JinxCappa/sopsie",
+  "icon": "images/icon.png",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "workspaceContains:**/.sops.yaml",
+    "workspaceContains:**/.sops.yml"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "sopsie.encrypt",
+        "title": "SOPS: Encrypt File",
+        "icon": "$(lock)"
+      },
+      {
+        "command": "sopsie.decrypt",
+        "title": "SOPS: Decrypt File",
+        "icon": "$(unlock)"
+      },
+      {
+        "command": "sopsie.showDecryptedPreview",
+        "title": "SOPS: Show Decrypted Preview",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "sopsie.editInPlace",
+        "title": "SOPS: Edit In-Place",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "sopsie.reloadConfig",
+        "title": "SOPS: Reload Configuration"
+      },
+      {
+        "command": "sopsie.updateKeys",
+        "title": "SOPS: Update Keys",
+        "icon": "$(key)"
+      },
+      {
+        "command": "sopsie.rotate",
+        "title": "SOPS: Rotate Data Key",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "sopsie.toggleDebugLogging",
+        "title": "SOPS: Toggle Debug Logging"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "sopsie.submenu",
+        "label": "SOPSie"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "sopsie.decrypt",
+          "when": "sopsie.isEncryptedFile && resourceScheme == file",
+          "group": "navigation@1"
+        },
+        {
+          "command": "sopsie.encrypt",
+          "when": "sopsie.isDecryptedFile && resourceScheme == file",
+          "group": "navigation@1"
+        },
+        {
+          "command": "sopsie.showDecryptedPreview",
+          "when": "sopsie.isEncryptedFile && resourceScheme == file && !sopsie.useEditInPlace",
+          "group": "navigation@2"
+        },
+        {
+          "command": "sopsie.editInPlace",
+          "when": "sopsie.isEncryptedFile && resourceScheme == file && sopsie.useEditInPlace",
+          "group": "navigation@2"
+        },
+        {
+          "submenu": "sopsie.submenu",
+          "when": "sopsie.hasMatchingRule && resourceScheme == file",
+          "group": "3_sopsie"
+        }
+      ],
+      "explorer/context": [
+        {
+          "submenu": "sopsie.submenu",
+          "when": "sopsie.hasMatchingRule && !explorerResourceIsFolder",
+          "group": "7_modification@1"
+        }
+      ],
+      "sopsie.submenu": [
+        {
+          "command": "sopsie.updateKeys",
+          "when": "sopsie.isEncryptedFile",
+          "group": "1_keys@1"
+        },
+        {
+          "command": "sopsie.rotate",
+          "when": "sopsie.isEncryptedFile",
+          "group": "1_keys@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "sopsie.encrypt",
+          "when": "sopsie.hasMatchingRule"
+        },
+        {
+          "command": "sopsie.decrypt",
+          "when": "sopsie.hasMatchingRule && sopsie.isEncryptedFile"
+        },
+        {
+          "command": "sopsie.showDecryptedPreview",
+          "when": "sopsie.hasMatchingRule && sopsie.isEncryptedFile"
+        },
+        {
+          "command": "sopsie.editInPlace",
+          "when": "sopsie.hasMatchingRule && sopsie.isEncryptedFile"
+        },
+        {
+          "command": "sopsie.updateKeys",
+          "when": "sopsie.isEncryptedFile"
+        },
+        {
+          "command": "sopsie.rotate",
+          "when": "sopsie.isEncryptedFile"
+        }
+      ]
+    },
+    "configuration": [
+      {
+        "id": "general",
+        "title": "General",
+        "order": 1,
+        "properties": {
+          "sopsie.sopsPath": {
+            "type": "string",
+            "default": "sops",
+            "description": "Path to the sops CLI executable",
+            "scope": "machine",
+            "order": 1
+          },
+          "sopsie.decryptionTimeout": {
+            "type": "number",
+            "default": 30000,
+            "description": "Timeout in milliseconds for decryption operations",
+            "scope": "resource",
+            "order": 2
+          }
+        }
+      },
+      {
+        "id": "behavior",
+        "title": "Behavior",
+        "order": 2,
+        "properties": {
+          "sopsie.openBehavior": {
+            "type": "string",
+            "enum": [
+              "showEncrypted",
+              "autoDecrypt",
+              "showDecrypted"
+            ],
+            "enumDescriptions": [
+              "Show the encrypted content as-is (default)",
+              "Automatically decrypt the file in-place for editing",
+              "Automatically open a decrypted view in an adjacent column"
+            ],
+            "default": "showEncrypted",
+            "description": "How to handle opening SOPS-encrypted files",
+            "scope": "resource",
+            "order": 1
+          },
+          "sopsie.saveBehavior": {
+            "type": "string",
+            "enum": [
+              "manualEncrypt",
+              "autoEncrypt",
+              "prompt"
+            ],
+            "enumDescriptions": [
+              "Require manual encryption via command (default)",
+              "Automatically encrypt on save",
+              "Prompt before each save to choose encrypt or save as-is"
+            ],
+            "default": "manualEncrypt",
+            "description": "How to handle saving decrypted content",
+            "scope": "resource",
+            "order": 2
+          },
+          "sopsie.decryptedViewMode": {
+            "type": "string",
+            "enum": [
+              "preview",
+              "editInPlace"
+            ],
+            "enumDescriptions": [
+              "Open a read-only preview of the decrypted content",
+              "Open an editable temporary file that encrypts back on save"
+            ],
+            "default": "preview",
+            "description": "How to view decrypted SOPS files when using the toolbar button",
+            "scope": "resource",
+            "order": 3
+          },
+          "sopsie.confirmUpdateKeys": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show confirmation dialog before updating SOPS keys",
+            "scope": "resource",
+            "order": 4
+          },
+          "sopsie.confirmRotate": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show confirmation dialog before rotating data keys",
+            "scope": "resource",
+            "order": 5
+          }
+        }
+      },
+      {
+        "id": "editor",
+        "title": "Editor",
+        "order": 3,
+        "properties": {
+          "sopsie.autoClosePairedTab": {
+            "type": "boolean",
+            "default": true,
+            "description": "Automatically close the paired tab when closing an encrypted or decrypted file. When enabled, closing either tab will close both.",
+            "scope": "window"
+          },
+          "sopsie.autoCloseTab": {
+            "type": "boolean",
+            "default": true,
+            "description": "Automatically close decrypted preview/edit tabs when opening another file, and collapse the editor column",
+            "scope": "window"
+          },
+          "sopsie.openDecryptedBeside": {
+            "type": "boolean",
+            "default": true,
+            "description": "Open decrypted preview/edit in a side-by-side column. When disabled, opens in the same editor group.",
+            "scope": "window"
+          },
+          "sopsie.showStatusBar": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show SOPS status in the status bar for matching files",
+            "scope": "window"
+          }
+        }
+      },
+      {
+        "id": "debugging",
+        "title": "Debugging",
+        "order": 4,
+        "properties": {
+          "sopsie.enableDebugLogging": {
+            "type": "boolean",
+            "default": false,
+            "description": "Enable debug-level logging to the SOPSie output channel. Useful for troubleshooting issues.",
+            "scope": "window",
+            "order": 1
+          }
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "check-types": "tsc --noEmit",
+    "pretest": "npm run compile",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "dependencies": {
+    "yaml": "^2.3.4"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/vscode": "^1.80.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.27.0",
+    "eslint": "^9.39.1",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.3"
+  }
+}
