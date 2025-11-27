@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { ConfigManager } from '../config/configManager';
 import { ContextManager } from '../context/contextManager';
 import { SopsDetector } from '../sops/sopsDetector';
@@ -122,7 +123,7 @@ export class DocumentWatcher implements vscode.Disposable {
      * Also handles closing previews when user switches to non-SOPS files (when openBehavior=showDecrypted).
      */
     private async maybeUpdateDecryptedView(focusedUri: vscode.Uri): Promise<void> {
-        const fileName = focusedUri.path.split('/').pop();
+        const fileName = path.basename(focusedUri.fsPath);
         logger.debug('[DocumentWatcher] maybeUpdateDecryptedView called for:', fileName);
 
         // Skip if extension is in the middle of opening a document (prevent recursion)

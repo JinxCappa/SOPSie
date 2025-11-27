@@ -11,18 +11,9 @@ function getOutputChannel(): vscode.LogOutputChannel {
 }
 
 /**
- * Log a message to the output channel.
- * @deprecated Use `logger.info()` or `logger.debug()` from loggerService instead.
+ * Log an error with optional details to the output channel.
  */
-export function log(message: string): void {
-    logger.info(message);
-}
-
-/**
- * Log an error to the output channel.
- * @deprecated Use `logger.error()` from loggerService instead.
- */
-export function logError(message: string, details?: string): void {
+function logErrorWithDetails(message: string, details?: string): void {
     logger.error(message);
     if (details) {
         logger.error(details);
@@ -37,10 +28,10 @@ export async function handleError(error: unknown): Promise<void> {
     if (isSopsError(error)) {
         await handleSopsError(error);
     } else if (error instanceof Error) {
-        logError(error.message, error.stack);
+        logErrorWithDetails(error.message, error.stack);
         vscode.window.showErrorMessage(`SOPS operation failed: ${error.message}`);
     } else {
-        logError(String(error));
+        logger.error(String(error));
         vscode.window.showErrorMessage(`SOPS operation failed: ${String(error)}`);
     }
 }
@@ -61,7 +52,7 @@ function isSopsError(error: unknown): error is SopsError {
  * Handle a structured SOPS error
  */
 async function handleSopsError(error: SopsError): Promise<void> {
-    logError(`[${error.type}] ${error.message}`, error.details);
+    logErrorWithDetails(`[${error.type}] ${error.message}`, error.details);
 
     switch (error.type) {
         case SopsErrorType.CliNotFound:
@@ -231,14 +222,4 @@ async function showGenericError(error: SopsError): Promise<void> {
         const channel = getOutputChannel();
         channel.show();
     }
-}
-
-/**
- * Dispose the error handler.
- * @deprecated The output channel is now managed by LoggerService.
- * Add LoggerService to context.subscriptions instead.
- */
-export function disposeErrorHandler(): void {
-    // Output channel is now managed by LoggerService
-    // This function is kept for backward compatibility but does nothing
 }

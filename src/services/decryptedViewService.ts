@@ -14,6 +14,8 @@ export interface ShowDecryptedOptions {
     showInfoMessage?: boolean;
     /** Explicit view column to use instead of calculating from settings */
     targetColumn?: vscode.ViewColumn;
+    /** Override the original column for tracking (used when switching modes to preserve column layout) */
+    originalColumn?: vscode.ViewColumn;
 }
 
 /**
@@ -45,12 +47,14 @@ export class DecryptedViewService implements vscode.Disposable {
 
     /**
      * Track document after opening, handling stale editor references
+     * @param originalColumnOverride - If provided, use this as the original column instead of inferring from active editor
      */
     private trackOpenedDocument(
         doc: vscode.TextDocument,
         sourceUri: vscode.Uri,
         shownEditor: vscode.TextEditor,
-        viewColumn: vscode.ViewColumn
+        viewColumn: vscode.ViewColumn,
+        originalColumnOverride?: vscode.ViewColumn
     ): vscode.ViewColumn {
         // Re-fetch the editor after setTextDocumentLanguage (original shownEditor may be stale)
         const currentEditor = vscode.window.visibleTextEditors.find(
@@ -58,7 +62,7 @@ export class DecryptedViewService implements vscode.Disposable {
         ) ?? shownEditor;
 
         const effectiveViewColumn = currentEditor.viewColumn ?? viewColumn;
-        this.editorGroupTracker.trackDocumentOpened(doc.uri, sourceUri, effectiveViewColumn);
+        this.editorGroupTracker.trackDocumentOpened(doc.uri, sourceUri, effectiveViewColumn, originalColumnOverride);
         return effectiveViewColumn;
     }
 
@@ -102,7 +106,7 @@ export class DecryptedViewService implements vscode.Disposable {
             });
 
             await this.setDocumentLanguage(doc, sourceUri.fsPath);
-            this.trackOpenedDocument(doc, sourceUri, shownEditor, viewColumn);
+            this.trackOpenedDocument(doc, sourceUri, shownEditor, viewColumn, options.originalColumn);
         } finally {
             this.editorGroupTracker.setExtensionTriggeredOpen(false);
         }
@@ -144,7 +148,7 @@ export class DecryptedViewService implements vscode.Disposable {
             });
 
             await this.setDocumentLanguage(doc, sourceUri.fsPath);
-            this.trackOpenedDocument(doc, sourceUri, shownEditor, viewColumn);
+            this.trackOpenedDocument(doc, sourceUri, shownEditor, viewColumn, options.originalColumn);
         } finally {
             this.editorGroupTracker.setExtensionTriggeredOpen(false);
         }
@@ -161,7 +165,7 @@ export class DecryptedViewService implements vscode.Disposable {
      * Handles unsaved changes in edit-in-place mode with a prompt.
      */
     async switchToFile(newSourceUri: vscode.Uri): Promise<void> {
-        logger.debug('[DecryptedViewService] switchToFile called for:', newSourceUri.path.split('/').pop());
+        logger.debug('[DecryptedViewService] switchToFile called for:', path.basename(newSourceUri.fsPath));
         const currentMode = this.getCurrentMode();
         logger.debug('[DecryptedViewService] switchToFile: currentMode=', currentMode);
         if (!currentMode) {
@@ -193,64 +197,71 @@ export class DecryptedViewService implements vscode.Disposable {
         const previewColumn = tracked?.openedInColumn;
         const originalColumn = tracked?.originalColumn ?? vscode.ViewColumn.One;
         const oldSourceUri = tracked?.originalActiveUri ? vscode.Uri.parse(tracked.originalActiveUri) : undefined;
-        logger.debug('[DecryptedViewService] switchToFile: previewColumn=', previewColumn, 'originalColumn=', originalColumn, 'oldSourceUri=', oldSourceUri?.path.split('/').pop());
+        logger.debug('[DecryptedViewService] switchToFile: previewColumn=', previewColumn, 'originalColumn=', originalColumn, 'oldSourceUri=', oldSourceUri ? path.basename(oldSourceUri.fsPath) : undefined);
 
-        await this.editorGroupTracker.closeAllTrackedDocuments({ skipFocusReturn: true });
-
-        // Close the old encrypted file if autoClosePairedTab is enabled
-        if (oldSourceUri && this.settingsService.shouldAutoClosePairedTab()) {
-            const oldFileTab = this.findTabByUri(oldSourceUri);
-            if (oldFileTab) {
-                logger.debug('[DecryptedViewService] switchToFile: Closing old encrypted file:', oldSourceUri.path.split('/').pop());
-                await vscode.window.tabGroups.close(oldFileTab.tab);
-            }
-        }
-
-        // If openDecryptedBeside is enabled and we know which column the preview was in,
-        // ensure the encrypted file is in column 1 and reuse the preview column
-        if (this.settingsService.shouldOpenDecryptedBeside() && previewColumn !== undefined) {
-            // Check if the new encrypted file opened in the wrong column (the preview column)
-            const newFileTab = this.findTabByUri(newSourceUri);
-            logger.debug('[DecryptedViewService] switchToFile: newFileTab found=', !!newFileTab, 'newFileColumn=', newFileTab?.group.viewColumn);
-            if (newFileTab && newFileTab.group.viewColumn === previewColumn) {
-                logger.debug('[DecryptedViewService] switchToFile: Relocating encrypted file from column', previewColumn, 'to column', originalColumn);
-                // Move the encrypted file to column 1
-                await vscode.window.tabGroups.close(newFileTab.tab);
-                const doc = await vscode.workspace.openTextDocument(newSourceUri);
-                await vscode.window.showTextDocument(doc, {
-                    viewColumn: originalColumn,
-                    preview: false,
-                    preserveFocus: false
-                });
-            }
-
-            // Open preview in the explicit column (not Beside)
-            logger.debug('[DecryptedViewService] switchToFile: Opening preview in explicit column', previewColumn);
-            await this.openDecryptedView(newSourceUri, {
-                preserveFocus: true,
-                showInfoMessage: false,
-                targetColumn: previewColumn
-            });
-        } else {
-            // Non-beside mode or no previous column info - use default behavior
-            logger.debug('[DecryptedViewService] switchToFile: Using default behavior (beside or no previewColumn)');
-            await this.openDecryptedView(newSourceUri, { preserveFocus: true, showInfoMessage: false });
-        }
-
-        // Ensure focus returns to the source file after opening
+        // Set guard flag for the ENTIRE switch operation to prevent DocumentWatcher
+        // from opening duplicate previews between close and open operations
+        this.editorGroupTracker.setExtensionTriggeredOpen(true);
         try {
-            const sourceDoc = vscode.workspace.textDocuments.find(
-                d => d.uri.toString() === newSourceUri.toString()
-            );
-            if (sourceDoc) {
-                await vscode.window.showTextDocument(sourceDoc, {
-                    viewColumn: originalColumn,
-                    preserveFocus: false,
-                    preview: false
-                });
+            await this.editorGroupTracker.closeAllTrackedDocuments({ skipFocusReturn: true });
+
+            // Close the old encrypted file if autoClosePairedTab is enabled
+            if (oldSourceUri && this.settingsService.shouldAutoClosePairedTab()) {
+                const oldFileTab = this.findTabByUri(oldSourceUri);
+                if (oldFileTab) {
+                    logger.debug('[DecryptedViewService] switchToFile: Closing old encrypted file:', path.basename(oldSourceUri.fsPath));
+                    await vscode.window.tabGroups.close(oldFileTab.tab);
+                }
             }
-        } catch {
-            // Ignore focus errors
+
+            // If openDecryptedBeside is enabled and we know which column the preview was in,
+            // ensure the encrypted file is in column 1 and reuse the preview column
+            if (this.settingsService.shouldOpenDecryptedBeside() && previewColumn !== undefined) {
+                // Check if the new encrypted file opened in the wrong column (the preview column)
+                const newFileTab = this.findTabByUri(newSourceUri);
+                logger.debug('[DecryptedViewService] switchToFile: newFileTab found=', !!newFileTab, 'newFileColumn=', newFileTab?.group.viewColumn);
+                if (newFileTab && newFileTab.group.viewColumn === previewColumn) {
+                    logger.debug('[DecryptedViewService] switchToFile: Relocating encrypted file from column', previewColumn, 'to column', originalColumn);
+                    // Move the encrypted file to column 1
+                    await vscode.window.tabGroups.close(newFileTab.tab);
+                    const doc = await vscode.workspace.openTextDocument(newSourceUri);
+                    await vscode.window.showTextDocument(doc, {
+                        viewColumn: originalColumn,
+                        preview: false,
+                        preserveFocus: false
+                    });
+                }
+
+                // Open preview in the explicit column (not Beside)
+                logger.debug('[DecryptedViewService] switchToFile: Opening preview in explicit column', previewColumn);
+                await this.openDecryptedView(newSourceUri, {
+                    preserveFocus: true,
+                    showInfoMessage: false,
+                    targetColumn: previewColumn
+                });
+            } else {
+                // Non-beside mode or no previous column info - use default behavior
+                logger.debug('[DecryptedViewService] switchToFile: Using default behavior (beside or no previewColumn)');
+                await this.openDecryptedView(newSourceUri, { preserveFocus: true, showInfoMessage: false });
+            }
+
+            // Ensure focus returns to the source file after opening
+            try {
+                const sourceDoc = vscode.workspace.textDocuments.find(
+                    d => d.uri.toString() === newSourceUri.toString()
+                );
+                if (sourceDoc) {
+                    await vscode.window.showTextDocument(sourceDoc, {
+                        viewColumn: originalColumn,
+                        preserveFocus: false,
+                        preview: false
+                    });
+                }
+            } catch {
+                // Ignore focus errors
+            }
+        } finally {
+            this.editorGroupTracker.setExtensionTriggeredOpen(false);
         }
     }
 

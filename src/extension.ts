@@ -11,6 +11,7 @@ import { registerDecryptCommand } from './commands/decryptCommand';
 import { registerEncryptCommand } from './commands/encryptCommand';
 import { registerPreviewCommand, registerReloadConfigCommand } from './commands/previewCommand';
 import { registerEditInPlaceCommand } from './commands/editInPlaceCommand';
+import { registerSwitchToEditInPlaceCommand } from './commands/switchToEditInPlaceCommand';
 import { registerUpdateKeysCommand, registerRotateCommand } from './commands/keyCommands';
 import { TempFileHandler } from './handlers/tempFileHandler';
 import { SOPS_DECRYPTED_SCHEME } from './types';
@@ -94,6 +95,10 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(registerPreviewCommand(decryptedViewService));
 
     context.subscriptions.push(registerEditInPlaceCommand(decryptedViewService));
+
+    context.subscriptions.push(
+        registerSwitchToEditInPlaceCommand(decryptedViewService, editorGroupTracker)
+    );
 
     context.subscriptions.push(
         registerUpdateKeysCommand(

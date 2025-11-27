@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { SettingsService } from './settingsService';
 import { logger } from './loggerService';
 
@@ -53,10 +54,11 @@ export class EditorGroupTracker implements vscode.Disposable {
      * @param decryptedUri URI of the decrypted/preview document
      * @param sourceUri URI of the source encrypted file
      * @param openedInColumn Column where the decrypted document was opened
+     * @param originalColumnOverride If provided, use this as the original column instead of inferring from active editor
      */
-    trackDocumentOpened(decryptedUri: vscode.Uri, sourceUri: vscode.Uri, openedInColumn: vscode.ViewColumn): void {
+    trackDocumentOpened(decryptedUri: vscode.Uri, sourceUri: vscode.Uri, openedInColumn: vscode.ViewColumn, originalColumnOverride?: vscode.ViewColumn): void {
         const activeEditor = vscode.window.activeTextEditor;
-        const originalColumn = activeEditor?.viewColumn;
+        const originalColumn = originalColumnOverride ?? activeEditor?.viewColumn;
 
         const key = decryptedUri.toString();
         this.trackedDocs.set(key, {
@@ -73,6 +75,20 @@ export class EditorGroupTracker implements vscode.Disposable {
      */
     isTracked(uri: vscode.Uri): boolean {
         return this.trackedDocs.has(uri.toString());
+    }
+
+    /**
+     * Untrack a document without closing it.
+     * Used when the caller will handle closing the tab directly.
+     * @returns The tracked document info, or undefined if not tracked
+     */
+    untrackDocument(uri: vscode.Uri): TrackedDocument | undefined {
+        const key = uri.toString();
+        const tracked = this.trackedDocs.get(key);
+        if (tracked) {
+            this.trackedDocs.delete(key);
+        }
+        return tracked;
     }
 
     /**
@@ -100,7 +116,7 @@ export class EditorGroupTracker implements vscode.Disposable {
      */
     isClosingPairedFor(sourceUri: vscode.Uri): boolean {
         const result = this.recentlyClosedPreviewSource === sourceUri.toString();
-        logger.debug('[EditorGroupTracker] isClosingPairedFor(', sourceUri.path.split('/').pop(), ') =', result);
+        logger.debug('[EditorGroupTracker] isClosingPairedFor(', path.basename(sourceUri.fsPath), ') =', result);
         return result;
     }
 

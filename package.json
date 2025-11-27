@@ -56,6 +56,11 @@
       {
         "command": "sopsie.toggleDebugLogging",
         "title": "SOPS: Toggle Debug Logging"
+      },
+      {
+        "command": "sopsie.switchToEditInPlace",
+        "title": "SOPS: Switch to Edit Mode",
+        "icon": "$(edit)"
       }
     ],
     "submenus": [
@@ -84,6 +89,11 @@
         {
           "command": "sopsie.editInPlace",
           "when": "sopsie.isEncryptedFile && resourceScheme == file && sopsie.useEditInPlace",
+          "group": "navigation@2"
+        },
+        {
+          "command": "sopsie.switchToEditInPlace",
+          "when": "resourceScheme == sops-decrypted",
           "group": "navigation@2"
         },
         {
@@ -135,6 +145,10 @@
         {
           "command": "sopsie.rotate",
           "when": "sopsie.isEncryptedFile"
+        },
+        {
+          "command": "sopsie.switchToEditInPlace",
+          "when": "resourceScheme == sops-decrypted"
         }
       ]
     },
