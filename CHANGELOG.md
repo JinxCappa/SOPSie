@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2025-11-27
+
+### Added
+
+- Add edit button to preview tabs for switching from read-only preview to editable mode
+- New `switchToEditInPlace` command that transitions decrypted previews to editable temp files while preserving column layout
+- Add `untrackDocument` method to EditorGroupTracker for proper mode switching
+
+### Changed
+
+- Replace manual path parsing with `path.basename()` for cleaner code
+- Remove deprecated error handler functions (log, logError, dispose)
+
 ## [0.1.1] - 2025-11-27
 
 ### Fixed
