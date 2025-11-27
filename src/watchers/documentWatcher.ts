@@ -149,6 +149,12 @@ export class DocumentWatcher implements vscode.Disposable {
             return;
         }
 
+        // Check if the focused file IS the tracked decrypted document itself (edit-in-place temp file)
+        if (currentTracked && currentTracked.docUri === focusedUri.toString()) {
+            logger.debug('[DocumentWatcher] Skipping - focused on tracked decrypted doc');
+            return;
+        }
+
         // Check if focused file is SOPS-encrypted
         const hasRule = this.configManager.hasMatchingRule(focusedUri);
         const isEncrypted = hasRule ? await this.sopsDetector.isEncrypted(focusedUri) : false;
