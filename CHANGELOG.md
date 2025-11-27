@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-11-27
+
+### Fixed
+
+- Fixed column layout preservation when switching between encrypted files in beside mode
+- Fixed document watcher to skip already-tracked decrypted temp files, preventing unnecessary re-processing
+
 ## [0.1.0] - 2025-11-27
 
 - Initial release
