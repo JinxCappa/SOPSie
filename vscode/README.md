@@ -1,6 +1,6 @@
 # SOPSie
 
-Seamlessly edit SOPS-encrypted files in VS Code and JetBrains IDEs.
+Seamlessly edit SOPS-encrypted files in VS Code.
 
 ## Features
 
@@ -25,7 +25,7 @@ Seamlessly edit SOPS-encrypted files in VS Code and JetBrains IDEs.
 
 ## Settings
 
-Settings are available in your IDE's settings UI (VS Code: Settings, JetBrains: Preferences/Settings).
+Settings are available in VS Code's Settings UI (`Ctrl+,` / `Cmd+,`) or via `settings.json`.
 
 ### General
 
@@ -85,7 +85,7 @@ Settings are available in your IDE's settings UI (VS Code: Settings, JetBrains: 
 3. Open any file that matches one of your creation rules
 4. Use the lock/unlock icons in the editor title bar to encrypt/decrypt
 
-> **Tip**: In VS Code, if you don't see the icons in the editor title bar, check the **More Actions** menu (the `...` button). In JetBrains IDEs, look for the notification banner at the top of the editor.
+> **Tip**: If you don't see the icons in the editor title bar, check the **More Actions** menu (the `...` button).
 
 ### Workflows
 
@@ -149,11 +149,11 @@ creation_rules:
 
 ### Configuration Hot-Reload
 
-SOPSie automatically watches your `.sops.yaml` files. When you modify them, the configuration is reloaded instantly - no need to restart your IDE.
+SOPSie automatically watches your `.sops.yaml` files. When you modify them, the configuration is reloaded instantly - no need to restart VS Code.
 
 ## Commands
 
-All commands are available via the Command Palette (VS Code: `Ctrl+Shift+P` / `Cmd+Shift+P`, JetBrains: `Ctrl+Shift+A` / `Cmd+Shift+A`).
+All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`).
 
 | Command | Description |
 |---------|-------------|
@@ -185,11 +185,11 @@ Right-clicking a file in the explorer shows the **SOPSie** submenu with the same
 
 ## Troubleshooting
 
-### Icons not visible in the title bar (VS Code)
+### Icons not visible in the title bar
 
 VS Code may hide editor title bar icons when the window is narrow. Look for the **More Actions** menu (the `...` button at the right of the tab bar) to find the SOPSie commands.
 
-### Context menu not showing in explorer (VS Code)
+### Context menu not showing in explorer
 
 The SOPSie context menu in the file explorer only appears when the active editor has a SOPS-matching file open. This is a VS Code limitation - extension context menus in the explorer cannot evaluate custom conditions per-file. Use the editor title bar icons or Command Palette instead.
 
@@ -199,7 +199,7 @@ If you see an error about SOPS not being found:
 
 1. Ensure SOPS is installed: `sops --version`
 2. If installed but not in PATH, set the full path in `sopsPath`
-3. Restart your IDE after making changes
+3. Restart VS Code after making changes
 
 ### File not detected as SOPS-encrypted
 
@@ -208,8 +208,6 @@ Ensure your file path matches a `path_regex` or `filename_regex` pattern in your
 ### Getting more information for troubleshooting
 
 Enable debug logging to see detailed information about what SOPSie is doing:
-
-#### VS Code
 
 1. **Enable SOPSie debug logging** (choose one):
    - **Via Setting**: Settings > SOPSie > Debugging > Enable Debug Logging
@@ -222,12 +220,6 @@ Enable debug logging to see detailed information about what SOPSie is doing:
    - Alternatively: Command Palette > "Developer: Set Log Level..." > select **Debug**
 
 Both steps are required - SOPSie's setting controls whether debug messages are generated, and VS Code's log level controls whether they are displayed.
-
-#### JetBrains IDEs
-
-1. Go to **Settings/Preferences > Tools > SOPSie**
-2. Enable **Debug Logging**
-3. View logs in **Help > Show Log in Finder/Explorer** or the IDE's log file
 
 ## Release Notes
 

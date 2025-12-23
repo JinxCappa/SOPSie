@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import * as path from 'path';
+import * as fs from 'fs';
 import { SopsError, SopsErrorType } from '../types';
 import { SettingsService } from '../services/settingsService';
 import { logger } from '../services/loggerService';
@@ -63,27 +64,39 @@ export class SopsRunner {
     /**
      * Encrypt content from stdin with filename override for rule matching.
      * Used for encrypting in-memory content without writing to disk first.
+     * 
+     * Note: Uses a temp file approach because SOPS stdin handling is unreliable
+     * across platforms (Windows doesn't support `-` or `/dev/stdin`).
      */
     async encryptContent(content: string, filePath: string): Promise<string> {
-        const ext = path.extname(filePath).slice(1);
-        const inputType = this.getInputType(ext);
-        const outputType = inputType;
+        const ext = path.extname(filePath);
+        const dir = path.dirname(filePath);
+        const inputType = this.getInputType(ext.slice(1));
         logger.debug(`SopsRunner: Encrypting content for ${filePath} (type=${inputType})`);
 
-        return this.runSopsWithStdin(
-            [
-                '--encrypt',
-                '--input-type',
-                inputType,
-                '--output-type',
-                outputType,
-                '--filename-override',
-                filePath,
-                '/dev/stdin'
-            ],
-            content,
-            filePath
-        );
+        // Create a temp file in the same directory so .sops.yaml rules match
+        // Use same extension so SOPS auto-detects the format
+        const tempFileName = `.sopsie-temp-${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+        const tempFilePath = path.join(dir, tempFileName);
+
+        try {
+            // Write content to temp file
+            fs.writeFileSync(tempFilePath, content, 'utf8');
+
+            // Encrypt the temp file
+            const result = await this.runSops(['--encrypt', tempFilePath], tempFilePath);
+
+            return result;
+        } finally {
+            // Always clean up temp file
+            try {
+                if (fs.existsSync(tempFilePath)) {
+                    fs.unlinkSync(tempFilePath);
+                }
+            } catch (cleanupError) {
+                logger.debug(`Failed to clean up temp file: ${getErrorMessage(cleanupError)}`);
+            }
+        }
     }
 
     /**
@@ -154,17 +167,6 @@ export class SopsRunner {
         const timeout = this.settingsService.getTimeout();
         const cwd = this.getWorkingDirectory(filePath);
         return this.runCommand(sopsPath, args, cwd, '', timeout);
-    }
-
-    private async runSopsWithStdin(
-        args: string[],
-        stdin: string,
-        filePath: string
-    ): Promise<string> {
-        const sopsPath = this.settingsService.getSopsPath();
-        const timeout = this.settingsService.getTimeout();
-        const cwd = this.getWorkingDirectory(filePath);
-        return this.runCommand(sopsPath, args, cwd, stdin, timeout);
     }
 
     private runCommand(

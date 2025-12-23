@@ -1,0 +1,151 @@
+<idea-plugin>
+    <id>com.sopsie.jetbrains</id>
+    <name>SOPSie</name>
+    <vendor>JinxCappa</vendor>
+    <description><![CDATA[
+        SOPS encrypted file support for JetBrains IDEs.
+        <br><br>
+        Provides seamless integration with <a href="https://github.com/getsops/sops">SOPS</a>
+        (Secrets OPerationS) for editing encrypted files directly in your IDE.
+        <br><br>
+        Features:
+        <ul>
+            <li>Encrypt and decrypt SOPS files</li>
+            <li>Preview decrypted content</li>
+            <li>Edit-in-place with automatic re-encryption</li>
+            <li>Configuration via .sops.yaml</li>
+        </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Application Services -->
+        <applicationService serviceImplementation="com.sopsie.services.SopsSettingsService"/>
+        <applicationService serviceImplementation="com.sopsie.execution.SopsRunner"/>
+        <applicationService serviceImplementation="com.sopsie.detection.SopsDetector"/>
+        <applicationService serviceImplementation="com.sopsie.services.LoggerService"/>
+
+        <!-- Project Services -->
+        <projectService serviceImplementation="com.sopsie.config.SopsConfigManager"/>
+        <projectService serviceImplementation="com.sopsie.services.SopsProjectService"/>
+        <projectService serviceImplementation="com.sopsie.handlers.TempFileHandler"/>
+        <projectService serviceImplementation="com.sopsie.handlers.DecryptedEditorHandler"/>
+        <projectService serviceImplementation="com.sopsie.services.FileStateTracker"/>
+        <projectService serviceImplementation="com.sopsie.handlers.AutoBehaviorHandler"/>
+
+        <!-- Settings UI -->
+        <applicationConfigurable
+            parentId="tools"
+            instance="com.sopsie.settings.SopsSettingsConfigurable"
+            id="com.sopsie.settings"
+            displayName="SOPSie"/>
+
+        <!-- UI Components -->
+        <statusBarWidgetFactory
+            id="SopsieStatusBar"
+            implementation="com.sopsie.ui.SopsStatusBarWidgetFactory"
+            order="after Encoding"/>
+        <iconProvider implementation="com.sopsie.ui.SopsIconProvider" order="first"/>
+        <editorNotificationProvider implementation="com.sopsie.ui.SopsEditorNotificationProvider"/>
+
+        <!-- Notification Group -->
+        <notificationGroup id="Sopsie.Notifications" displayType="BALLOON"/>
+
+        <!-- Startup Activity -->
+        <postStartupActivity implementation="com.sopsie.listeners.SopsStartupActivity"/>
+    </extensions>
+
+    <applicationListeners>
+        <!-- Watch for .sops.yaml file changes -->
+        <listener class="com.sopsie.listeners.SopsConfigFileListener"
+                  topic="com.intellij.openapi.vfs.newvfs.BulkFileListener"/>
+    </applicationListeners>
+
+    <projectListeners>
+        <!-- Handle file open/close events for auto-behaviors -->
+        <listener class="com.sopsie.listeners.SopsFileEditorListener"
+                  topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"/>
+        <!-- Handle file save events for auto-encrypt -->
+        <listener class="com.sopsie.listeners.SopsSaveListener"
+                  topic="com.intellij.openapi.fileEditor.FileDocumentManagerListener"/>
+    </projectListeners>
+
+    <actions>
+        <!-- SOPS Menu in Tools -->
+        <group id="Sopsie.MainMenu" text="SOPS" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </group>
+
+        <!-- Encrypt Action -->
+        <action id="Sopsie.Encrypt"
+                class="com.sopsie.actions.EncryptAction"
+                text="Encrypt File"
+                description="Encrypt file using SOPS">
+            <add-to-group group-id="Sopsie.MainMenu"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+
+        <!-- Decrypt Action -->
+        <action id="Sopsie.Decrypt"
+                class="com.sopsie.actions.DecryptAction"
+                text="Decrypt File"
+                description="Decrypt SOPS-encrypted file in-place">
+            <add-to-group group-id="Sopsie.MainMenu"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+
+        <!-- Show Decrypted Preview Action -->
+        <action id="Sopsie.ShowPreview"
+                class="com.sopsie.actions.ShowDecryptedPreviewAction"
+                text="Show Decrypted Preview"
+                description="Open read-only preview of decrypted content">
+            <add-to-group group-id="Sopsie.MainMenu"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+
+        <!-- Edit In Place Action -->
+        <action id="Sopsie.EditInPlace"
+                class="com.sopsie.actions.EditInPlaceAction"
+                text="Edit In Place"
+                description="Edit decrypted content in a temp file">
+            <add-to-group group-id="Sopsie.MainMenu"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+
+        <!-- Switch to Edit Mode Action -->
+        <action id="Sopsie.SwitchToEditMode"
+                class="com.sopsie.actions.SwitchToEditModeAction"
+                text="Switch to Edit Mode"
+                description="Convert read-only preview to editable temp file">
+            <add-to-group group-id="Sopsie.MainMenu"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+
+        <!-- Update Keys Action -->
+        <action id="Sopsie.UpdateKeys"
+                class="com.sopsie.actions.UpdateKeysAction"
+                text="Update Keys"
+                description="Re-encrypt file with keys from .sops.yaml">
+            <add-to-group group-id="Sopsie.MainMenu"/>
+        </action>
+
+        <!-- Rotate Data Key Action -->
+        <action id="Sopsie.RotateDataKey"
+                class="com.sopsie.actions.RotateDataKeyAction"
+                text="Rotate Data Key"
+                description="Rotate the data encryption key">
+            <add-to-group group-id="Sopsie.MainMenu"/>
+        </action>
+
+        <!-- Reload Config Action -->
+        <action id="Sopsie.ReloadConfig"
+                class="com.sopsie.actions.ReloadConfigAction"
+                text="Reload Configuration"
+                description="Reload all .sops.yaml configuration files">
+            <add-to-group group-id="Sopsie.MainMenu"/>
+        </action>
+    </actions>
+</idea-plugin>

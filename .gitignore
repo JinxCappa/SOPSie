@@ -1,7 +1,63 @@
+# Build outputs
 out
 dist
+build
+*.class
+*.jar
+*.war
+
+# Node.js
 node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# VSCode extension
 .vscode-test/
 *.vsix
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+build/
+
+# Kotlin
+*.kotlin_module
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# Editor backups
+*.swp
+*.swo
+*.bak
+*.tmp
+*.orig
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Project specific
 **/mock/**
 .sops.yaml
