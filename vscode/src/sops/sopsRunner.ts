@@ -83,8 +83,11 @@ export class SopsRunner {
             // Write content to temp file
             fs.writeFileSync(tempFilePath, content, 'utf8');
 
-            // Encrypt the temp file
-            const result = await this.runSops(['--encrypt', tempFilePath], tempFilePath);
+            // Encrypt the temp file, using --filename-override to ensure SOPS matches rules against the original path
+            const result = await this.runSops(
+                ['--encrypt', '--filename-override', filePath, tempFilePath],
+                tempFilePath
+            );
 
             return result;
         } finally {
