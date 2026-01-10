@@ -115,8 +115,11 @@ class SopsRunner {
             // Write content to temp file
             tempFile.writeText(content, Charsets.UTF_8)
 
-            // Encrypt the temp file
-            return runSops(listOf("--encrypt", tempFile.absolutePath), tempFile.absolutePath)
+            // Encrypt the temp file, using --filename-override to ensure SOPS matches rules against the original path
+            return runSops(
+                listOf("--encrypt", "--filename-override", filePath, tempFile.absolutePath),
+                tempFile.absolutePath
+            )
         } finally {
             // Always clean up temp file
             try {
