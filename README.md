@@ -1,3 +1,9 @@
+## Please visit the new independent repo for each extention
+
+https://github.com/jinxcappa/sopsie-vscode
+
+https://github.com/jinxcappa/sopsie-jetbrains
+
 # SOPSie
 
 Seamlessly edit SOPS-encrypted files in VS Code and JetBrains IDEs.
